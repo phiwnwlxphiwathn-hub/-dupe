@@ -1,0 +1,329 @@
+--[[
+    ═══════════════════════════════════════════════
+        ☘️  NASA HUB  —  Client GUI (LocalScript)
+        วางใน: StarterPlayer > StarterPlayerScripts
+        ธีม: Dark + Green Neon (Rayfield Style)
+    ═══════════════════════════════════════════════
+--]]
+
+-- ============================================
+-- Services
+-- ============================================
+local Players           = game:GetService("Players")
+local TweenService      = game:GetService("TweenService")
+local UserInputService  = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player    = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- รอ Remote จาก Server (ต้องมี NasaHubServer ทำงานอยู่)
+local spawnEvent = ReplicatedStorage:WaitForChild("NasaSpawnEvent")
+local listFunc   = ReplicatedStorage:WaitForChild("NasaGetTowerList")
+
+-- ============================================
+-- 🎨 ธีมสี
+-- ============================================
+local THEME = {
+    bg        = Color3.fromRGB(15, 15, 15),      -- ดำสนิท
+    bg2       = Color3.fromRGB(22, 22, 22),      -- ดำอ่อน (title bar)
+    bg3       = Color3.fromRGB(0, 40, 25),       -- เขียวเข้ม (hover)
+    accent    = Color3.fromRGB(0, 255, 120),     -- เขียวนีออน
+    accentDim = Color3.fromRGB(0, 180, 90),      -- เขียวเข้ม
+    text      = Color3.fromRGB(230, 255, 240),   -- ขาวอมเขียว
+    textDim   = Color3.fromRGB(140, 160, 150),   -- เทาเขียว
+    line      = Color3.fromRGB(0, 80, 45),       -- เส้นขอบ
+    danger    = Color3.fromRGB(255, 100, 100),   -- แดง (ปุ่มปิด)
+}
+
+-- ============================================
+-- ScreenGui หลัก
+-- ============================================
+local gui = Instance.new("ScreenGui")
+gui.Name = "NasaHubGUI"
+gui.ResetOnSpawn = false       -- คง GUI ไว้แม้ตัวละครตาย
+gui.IgnoreGuiInset = true      -- ไม่เว้นขอบบน
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = playerGui
+
+-- ============================================
+-- ปุ่มเปิด/ปิด (Floating Toggle)
+-- ============================================
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleBtn"
+toggleBtn.Size = UDim2.new(0, 150, 0, 42)
+toggleBtn.Position = UDim2.new(0, 20, 0, 20)
+toggleBtn.BackgroundColor3 = THEME.bg
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Text = "☘️  NASA HUB"
+toggleBtn.TextColor3 = THEME.accent
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 16
+toggleBtn.AutoButtonColor = false
+toggleBtn.Parent = gui
+
+local tStroke = Instance.new("UIStroke")
+tStroke.Color = THEME.accent
+tStroke.Thickness = 2
+tStroke.Transparency = 0.3
+tStroke.Parent = toggleBtn
+
+local tCorner = Instance.new("UICorner")
+tCorner.CornerRadius = UDim.new(0, 8)
+tCorner.Parent = toggleBtn
+
+-- ============================================
+-- Main Frame (หน้าต่าง Hub)
+-- ============================================
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.new(0, 340, 0, 480)
+main.Position = UDim2.new(0, 20, 0, 75)
+main.BackgroundColor3 = THEME.bg
+main.BorderSizePixel = 0
+main.Visible = false
+main.Parent = gui
+
+local mCorner = Instance.new("UICorner")
+mCorner.CornerRadius = UDim.new(0, 10)
+mCorner.Parent = main
+
+local mStroke = Instance.new("UIStroke")
+mStroke.Color = THEME.accent
+mStroke.Thickness = 1.5
+mStroke.Transparency = 0.5
+mStroke.Parent = main
+
+-- ============================================
+-- Title Bar
+-- ============================================
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 50)
+titleBar.BackgroundColor3 = THEME.bg2
+titleBar.BorderSizePixel = 0
+titleBar.Parent = main
+
+local tbCorner = Instance.new("UICorner")
+tbCorner.CornerRadius = UDim.new(0, 10)
+tbCorner.Parent = titleBar
+
+-- เติมมุมล่างให้เหลี่ยม (เพราะ UICorner ปัดทั้ง 4 มุม)
+local tbFix = Instance.new("Frame")
+tbFix.Size = UDim2.new(1, 0, 0, 15)
+tbFix.Position = UDim2.new(0, 0, 1, -15)
+tbFix.BackgroundColor3 = THEME.bg2
+tbFix.BorderSizePixel = 0
+tbFix.Parent = titleBar
+
+-- เส้นใต้ title
+local tbLine = Instance.new("Frame")
+tbLine.Size = UDim2.new(1, 0, 0, 1)
+tbLine.Position = UDim2.new(0, 0, 1, 0)
+tbLine.BackgroundColor3 = THEME.line
+tbLine.BorderSizePixel = 0
+tbLine.Parent = titleBar
+
+-- ชื่อ Hub
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -60, 1, 0)
+titleLabel.Position = UDim2.new(0, 15, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "☘️  NASA HUB"
+titleLabel.TextColor3 = THEME.accent
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 20
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+-- ปุ่มปิด
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -40, 0, 10)
+closeBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 20)
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = THEME.danger
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.TextSize = 16
+closeBtn.BorderSizePixel = 0
+closeBtn.AutoButtonColor = false
+closeBtn.Parent = titleBar
+
+local cCorner = Instance.new("UICorner")
+cCorner.CornerRadius = UDim.new(0, 6)
+cCorner.Parent = closeBtn
+
+-- ============================================
+-- Scroll Frame (รายการ Tower)
+-- ============================================
+local scroll = Instance.new("ScrollingFrame")
+scroll.Name = "TowerList"
+scroll.Size = UDim2.new(1, -20, 1, -80)
+scroll.Position = UDim2.new(0, 10, 0, 60)
+scroll.BackgroundTransparency = 1
+scroll.BorderSizePixel = 0
+scroll.ScrollBarThickness = 4
+scroll.ScrollBarImageColor3 = THEME.accentDim
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y   -- ปรับ canvas อัตโนมัติ
+scroll.Parent = main
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 6)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = scroll
+
+-- ============================================
+-- ฟังก์ชันสร้างปุ่ม Tower แต่ละอัน
+-- ============================================
+local function createTowerButton(name, order)
+    local btn = Instance.new("TextButton")
+    btn.Name = name
+    btn.LayoutOrder = order
+    btn.Size = UDim2.new(1, -8, 0, 38)
+    btn.BackgroundColor3 = THEME.bg2
+    btn.BorderSizePixel = 0
+    btn.Text = "  ⚡  " .. name
+    btn.TextColor3 = THEME.text
+    btn.Font = Enum.Font.GothamSemibold
+    btn.TextSize = 14
+    btn.TextXAlignment = Enum.TextXAlignment.Left
+    btn.AutoButtonColor = false
+    btn.Parent = scroll
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = THEME.line
+    stroke.Thickness = 1
+    stroke.Parent = btn
+
+    -- Hover effect
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = THEME.bg3,
+        }):Play()
+        TweenService:Create(stroke, TweenInfo.new(0.15), {
+            Color = THEME.accent,
+        }):Play()
+    end)
+
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.15), {
+            BackgroundColor3 = THEME.bg2,
+        }):Play()
+        TweenService:Create(stroke, TweenInfo.new(0.15), {
+            Color = THEME.line,
+        }):Play()
+    end)
+
+    -- คลิก → เสก Tower ที่เมาส์
+    btn.MouseButton1Click:Connect(function()
+        local mouse = player:GetMouse()
+        local pos = mouse.Hit.Position + Vector3.new(0, 2, 0)
+        spawnEvent:FireServer(name, pos)
+
+        -- Flash effect
+        btn.BackgroundColor3 = THEME.accent
+        task.delay(0.1, function()
+            TweenService:Create(btn, TweenInfo.new(0.2), {
+                BackgroundColor3 = THEME.bg2,
+            }):Play()
+        end)
+    end)
+end
+
+-- ============================================
+-- โหลดรายการ Tower จาก Server
+-- ============================================
+local function refreshList()
+    -- ล้างปุ่มเก่า
+    for _, child in ipairs(scroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+
+    local names = listFunc:InvokeServer()
+
+    if not names or #names == 0 then
+        local l = Instance.new("TextLabel")
+        l.Size = UDim2.new(1, 0, 0, 40)
+        l.BackgroundTransparency = 1
+        l.Text = "ไม่พบ Tower ใน Folder"
+        l.TextColor3 = THEME.danger
+        l.Font = Enum.Font.Gotham
+        l.TextSize = 13
+        l.Parent = scroll
+        return
+    end
+
+    for i, name in ipairs(names) do
+        createTowerButton(name, i)
+    end
+end
+
+-- ============================================
+-- เปิด/ปิด Hub (Animation)
+-- ============================================
+local isOpen = false
+
+toggleBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+
+    if isOpen then
+        -- เปิด
+        main.Visible = true
+        main.Size = UDim2.new(0, 340, 0, 0)
+        TweenService:Create(main, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.new(0, 340, 0, 480),
+        }):Play()
+        refreshList()
+    else
+        -- ปิด
+        local tween = TweenService:Create(main, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+            Size = UDim2.new(0, 340, 0, 0),
+        })
+        tween:Play()
+        tween.Completed:Connect(function()
+            main.Visible = false
+        end)
+    end
+end)
+
+closeBtn.MouseButton1Click:Connect(function()
+    isOpen = false
+    main.Visible = false
+end)
+
+-- ============================================
+-- ลาก Hub (Drag จาก Title Bar)
+-- ============================================
+local dragging = false
+local dragStart, startPos
+
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = main.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        main.Position = UDim2.new(
+            startPos.X.Scale, startPos.X.Offset + delta.X,
+            startPos.Y.Scale, startPos.Y.Offset + delta.Y
+        )
+    end
+end)
